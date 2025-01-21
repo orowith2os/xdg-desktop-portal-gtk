@@ -45,6 +45,12 @@ static void sync_always_show_scrollbars (XdpImplSettings *impl);
 static void sync_status_shapes (XdpImplSettings *impl);
 
 typedef struct {
+  char *namespace;
+  char *key;
+  gboolean use_default;
+} NKBContainer;
+
+typedef struct {
   GSettingsSchema *schema;
   GSettings *settings;
 } SettingsBundle;
@@ -334,7 +340,7 @@ on_settings_changed (GSettings             *settings,
       strcmp (key, "enable-animations") == 0)
     sync_animations_enabled (user_data->self);
   else if (strcmp (user_data->namespace, "org.gnome.desktop.interface") == 0 &&
-      strcmp (key, "overlay-scrolling") == 0)
+           strcmp (key, "overlay-scrolling") == 0)
     sync_always_show_scrollbars (user_data->self);
   else if (strcmp (user_data->namespace, "org.gnome.desktop.a11y.interface") == 0 &&
            strcmp (key, "show-status-shapes") == 0)
@@ -423,7 +429,7 @@ static void
 set_enable_animations (XdpImplSettings *impl,
                        gboolean         new_enable_animations)
 {
-  const struct { char *n; char *k; gboolean b; } namespace_and_keys[2] = 
+  const NKBContainer namespace_and_keys[2] = 
     {{"org.gnome.desktop.interface", "enable-animations", TRUE}, 
      {"org.freedesktop.appearance", "reduce-animation", FALSE}};
   GVariant *enable_animations_variant;
@@ -434,11 +440,12 @@ set_enable_animations (XdpImplSettings *impl,
   enable_animations = new_enable_animations;
   for (int i = 0; i < 2; i++)
   {
-    enable_animations_variant = g_variant_new ("v", g_variant_new_boolean (enable_animations == namespace_and_keys[i].b));
+    enable_animations_variant = 
+      g_variant_new ("v", g_variant_new_boolean (enable_animations == namespace_and_keys[i].use_default));
     xdp_impl_settings_emit_setting_changed (impl,
-                                          namespace_and_keys[i].n,
-                                          namespace_and_keys[i].k,
-                                          enable_animations_variant);
+                                            namespace_and_keys[i].namespace,
+                                            namespace_and_keys[i].key,
+                                            enable_animations_variant);
   }
 }
 
@@ -457,7 +464,7 @@ static void
 set_always_show_scrollbars (XdpImplSettings *impl,
                             gboolean         new_always_show_scrollbars)
 {
-  const struct { char *n; char *k; gboolean b; } namespace_and_keys[2] =
+  const NKBContainer namespace_and_keys[2] =
     {{"org.gnome.desktop.interface", "overlay-scrolling", TRUE},
      {"org.freedesktop.appearance", "always-show-scrollbars", FALSE}};
   GVariant *always_show_scrollbars_variant;
@@ -468,11 +475,12 @@ set_always_show_scrollbars (XdpImplSettings *impl,
   always_show_scrollbars = new_always_show_scrollbars;
   for (int i = 0; i < 2; i++)
   {
-    always_show_scrollbars_variant = g_variant_new ("v", g_variant_new_boolean (new_always_show_scrollbars == namespace_and_keys[i].b));
+    always_show_scrollbars_variant = 
+      g_variant_new ("v", g_variant_new_boolean (new_always_show_scrollbars == namespace_and_keys[i].use_default));
     xdp_impl_settings_emit_setting_changed (impl,
-                                          namespace_and_keys[i].n,
-                                          namespace_and_keys[i].k,
-                                          always_show_scrollbars_variant);
+                                            namespace_and_keys[i].namespace,
+                                            namespace_and_keys[i].key,
+                                            always_show_scrollbars_variant);
   }
 }
 
@@ -491,7 +499,7 @@ static void
 set_status_shapes (XdpImplSettings *impl,
                    gboolean         new_use_status_shapes)
 {
-  const struct { char *n; char *k; gboolean b; } namespace_and_keys[2] =
+  const NKBContainer namespace_and_keys[2] =
     {{"org.gnome.desktop.a11y.interface", "show-status-shapes", TRUE},
      {"org.freedesktop.appearance", "status-shapes", TRUE}};
   GVariant *use_status_shapes_variant;
@@ -504,9 +512,9 @@ set_status_shapes (XdpImplSettings *impl,
   {
     use_status_shapes_variant = g_variant_new ("v", g_variant_new_boolean (new_use_status_shapes));
     xdp_impl_settings_emit_setting_changed (impl,
-                                          namespace_and_keys[i].n,
-                                          namespace_and_keys[i].k,
-                                          use_status_shapes_variant);
+                                            namespace_and_keys[i].namespace,
+                                            namespace_and_keys[i].key,
+                                            use_status_shapes_variant);
   }
 }
 
