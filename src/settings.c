@@ -116,6 +116,18 @@ get_contrast_value ()
   return g_variant_new_uint32 (hc ? 1 : 0);
 }
 
+static GVariant *
+get_reduced_animation ()
+{
+  SettingsBundle *bundle = g_hash_table_lookup (settings, "org.gnome.desktop.interface");
+  gboolean reduced_animation = FALSE;
+
+  if (bundle && g_settings_schema_has_key (bundle->schema, "enable-animations"))
+    reduced_animation = !g_settings_get_boolean (bundle->settings, "enable-animations");
+
+  return g_variant_new_boolean (reduced_animation);
+}
+
 static gboolean
 settings_handle_read_all (XdpImplSettings       *object,
                           GDBusMethodInvocation *invocation,
@@ -170,6 +182,7 @@ settings_handle_read_all (XdpImplSettings       *object,
       g_variant_dict_init (&dict, NULL);
       g_variant_dict_insert_value (&dict, "color-scheme", get_color_scheme ());
       g_variant_dict_insert_value (&dict, "contrast", get_contrast_value ());
+      g_variant_dict_insert_value (&dict, "reduce-animation", get_reduced_animation ());
 
       g_variant_builder_add (builder, "{s@a{sv}}", "org.freedesktop.appearance", g_variant_dict_end (&dict));
     }
@@ -203,7 +216,7 @@ settings_handle_read (XdpImplSettings       *object,
     {
       if (strcmp (arg_key, "color-scheme") == 0)
         {
-	  g_dbus_method_invocation_return_value (invocation,
+          g_dbus_method_invocation_return_value (invocation,
 						 g_variant_new ("(v)", get_color_scheme ()));
 	  return TRUE;
 	}
@@ -213,6 +226,12 @@ settings_handle_read (XdpImplSettings       *object,
 						 g_variant_new ("(v)", get_contrast_value ()));
 	  return TRUE;
 	}
+      else if (strcmp (arg_key, "reduce-animation") == 0)
+        {
+          g_dbus_method_invocation_return_value (invocation,
+                                                 g_variant_new ("(v)", get_reduced_animation ()));
+          return TRUE;
+        }
     }
   else if (strcmp (arg_namespace, "org.gnome.desktop.interface") == 0 &&
            strcmp (arg_key, "enable-animations") == 0)
@@ -358,20 +377,23 @@ static void
 set_enable_animations (XdpImplSettings *impl,
                        gboolean         new_enable_animations)
 {
-  const char *namespace = "org.gnome.desktop.interface";
-  const char *key = "enable-animations";
+  const struct { char *n; char *k; gboolean b; } namespace_and_keys[2] = 
+    {{"org.gnome.desktop.interface", "enable-animations", TRUE}, 
+     {"org.freedesktop.appearance", "reduce-animation", FALSE}};
   GVariant *enable_animations_variant;
 
   if (enable_animations == new_enable_animations)
     return;
 
   enable_animations = new_enable_animations;
-  enable_animations_variant =
-    g_variant_new ("v", g_variant_new_boolean (enable_animations));
-  xdp_impl_settings_emit_setting_changed (impl,
-                                          namespace,
-                                          key,
+  for (int i = 0; i < 2; i++)
+  {
+    enable_animations_variant = g_variant_new ("v", g_variant_new_boolean (enable_animations == namespace_and_keys[i].b));
+    xdp_impl_settings_emit_setting_changed (impl,
+                                          namespace_and_keys[i].n,
+                                          namespace_and_keys[i].k,
                                           enable_animations_variant);
+  }
 }
 
 static void
